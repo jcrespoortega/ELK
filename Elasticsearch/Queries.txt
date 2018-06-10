@@ -1,0 +1,118 @@
+Query 1:
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "_source": ["name","restaurant_id"],"query": { "match_all": {} }, "sort": { "name": { "order": "desc" } },"from": 1,"size": 100}'
+
+
+
+Query 2:
+
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "query": {"match": { "name": "Penelope" } } }'
+
+
+Query 3:
+
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "_source": ["name","restaurant_id"], "query": {"match": { "borough": "Manhattan" } } }'
+
+
+Query 4:
+
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "_source": ["name","restaurant_id","cuisine"], "query": {"match": { "borough": "Manhattan" } },"sort": { "name": { "order": "desc" } } }'
+
+{
+  "error" : {
+    "root_cause" : [
+      {
+        "type" : "illegal_argument_exception",
+        "reason" : "Fielddata is disabled on text fields by default. Set fielddata=true on [name] in order to load fielddata in memory by uninverting the inverted index. Note that this can however use significant memory. Alternatively use a keyword field instead."
+      }
+    ],
+    "type" : "search_phase_execution_exception",
+    "reason" : "all shards failed",
+    "phase" : "query",
+    "grouped" : true,
+    "failed_shards" : [
+      {
+        "shard" : 0,
+        "index" : "lugares",
+        "node" : "Hj72dcTySNGDQ6vM01soxw",
+        "reason" : {
+          "type" : "illegal_argument_exception",
+          "reason" : "Fielddata is disabled on text fields by default. Set fielddata=true on [name] in order to load fielddata in memory by uninverting the inverted index. Note that this can however use significant memory. Alternatively use a keyword field instead."
+        }
+      }
+    ]
+  },
+  "status" : 400
+}
+
++ Para corregirlo ponemos lo siguiente
+Vemos el mapeo de campos
+curl -XGET 'localhost:9200/lugares/restaurantes/_mapping?pretty'
+
+Y ponemos
+
+curl -XPUT 'localhost:9200/lugares/restaurantes/_mapping/?pretty' -H 'Content-Type: application/json' -d'
+{
+  "properties": {
+    "name": { 
+      "type":     "text",
+      "fielddata": true
+    }
+  }
+}
+'
+//Lo mismo en una linea
+curl -XPUT 'localhost:9200/lugares/restaurantes/_mapping/?pretty' -H 'Content-Type: application/json' -d' {"properties": {"name": {"type":"text","fielddata": true}}}'
+
++ Al repetir la consulta si funciona
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "_source": ["name","restaurant_id","cuisine"], "query": {"match": { "borough": "Manhattan" } },"sort": { "name": { "order": "desc" } } }'
+
+
+Query 5:
+
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "query": {"prefix": { "cuisine": "Jap"} }}'
+
+//No funciona, sale esto, cuando según la ayuda esta bien https://www.elastic.co/guide/en/elasticsearch/reference/current/query-dsl-prefix-query.html
+{
+  "took" : 4,
+  "timed_out" : false,
+  "_shards" : {
+    "total" : 5,
+    "successful" : 5,
+    "skipped" : 0,
+    "failed" : 0
+  },
+  "hits" : {
+    "total" : 0,
+    "max_score" : null,
+    "hits" : [ ]
+  }
+}
+
+//Además podemos ver que si hay restaurantes Japoneses y cuyo nombre empieza por Jap
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "_source": ["name","restaurant_id","cuisine"], "query": {"match": { "cuisine": "Japanese" } },"sort": { "name": { "order": "desc" } } }'
+
+
+Query 6:
+
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "_source": ["name","restaurant_id","cuisine"], 
+	"query": {
+			"bool": {
+				"must": {"match": {"borough": "Manhattan"}},
+				"must_not": [
+					{ "match": { "cuisine": "Japanese" } },
+					{ "match": { "cuisine": "Chinese" } }
+				  ]
+			}
+		}
+	,"sort": { "name": { "order": "desc" } } }'
+
+
+curl -XGET 'localhost:9200/lugares/restaurantes/_search?pretty' -H 'Content-Type: application/json' -d'{ "_source": ["name","borough","cuisine"],"query":{ "bool": {"must": {"match": {"borough": "Manhattan"}},"must_not": [{ "match": { "cuisine": "Japanese" } },{ "match": { "cuisine": "Chinese" } }] }},"sort": { "name": { "order": "desc" } } }'
+

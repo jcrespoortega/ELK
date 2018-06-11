@@ -13,6 +13,6 @@ $ curl -X PUT "localhost:9200/lugares" -H 'Content-Type: application/json' -d'{
 		}
 	}'
 
-Logstash is the tool selected to feed with data our system. For this task we develop an config file, logstash_restaurantes.conf, in order to run it (LINUX):
+Logstash is the tool selected to feed with data our system. For this task we develop  config_file, logstash_restaurantes.conf, in order to do it (LINUX):
 
 $./bin/logstash -f ./config/ logstash_restaurantes.conf.conf --debug --verbose 
